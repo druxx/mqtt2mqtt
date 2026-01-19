@@ -20,6 +20,13 @@ def processMessage(data, processor_config):
             if DEBUG:
                 print(f"Extracted value for field '{json_field}': {value}")
             on = float(value) >= threshold
+            if on:
+                if topic not in onOffTime:
+                    onOffTime[topic] = {}
+                if 'onValue' not in onOffTime[topic]:
+                    onOffTime[topic]['onValue'] = value
+                elif value > onOffTime[topic]['onValue']:
+                    onOffTime[topic]['onValue'] = value
             if topic not in previous:
                 previous[topic] = on
                 onOffTime[topic] = { 'onTime': time.time() if on else 0,
@@ -30,7 +37,6 @@ def processMessage(data, processor_config):
                     if on:
                         onOffTime[topic]['dToff'] = time.time() - onOffTime[topic]['offTime']
                         onOffTime[topic]['onTime'] = time.time()
-                        onOffTime[topic]['onValue'] = value
                     else:
                         onOffTime[topic]['dTon'] = time.time() - onOffTime[topic]['onTime']
                         onOffTime[topic]['offTime'] = time.time()
@@ -47,6 +53,7 @@ def processMessage(data, processor_config):
                             'duty_cycle_percent': round(dutyCycle, 2),
                             json_field + '_by_dutycycle': round(value_by_dutycycle, 2)
                         })
+                        onOffTime[topic]['onValue'] = 0
     return msg
 
     
