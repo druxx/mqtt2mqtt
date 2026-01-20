@@ -1,4 +1,5 @@
 from os import environ
+from datetime import datetime
 import importlib
 import json
 import paho.mqtt.client as mqtt
@@ -97,7 +98,7 @@ def send_homeassistant_registration(hostname):
     for key, entity in entities.items():
         registration_packet = getDefaultRegistrationPacket(hostname, key, entity)
         
-        registration_topic = HOMEASSISTANT_PREFIX + '/{}/{}/{}/config'.format(entity['type'], getHADeviceIdentifier(hostname), key)
+        registration_topic = HOMEASSISTANT_PREFIX + '/sensor/{}/{}/config'.format(getHADeviceIdentifier(hostname), key)
 #        mqtt_send(registration_topic, json.dumps(registration_packet), retain=True)
 
 
@@ -105,6 +106,7 @@ def send_homeassistant_registration(hostname):
 def on_message(client, userdata, msg):
     payload = msg.payload.decode()
     if DEBUG:
+        print(datetime.now().strftime("%H:%M:%S %Y-%m-%d"))
         print(f"\nMessage received on topic {msg.topic}, payload: {payload}")
     for processor in processors:
         if msg.topic == processor['topic']:
