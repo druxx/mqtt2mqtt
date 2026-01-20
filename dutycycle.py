@@ -65,6 +65,8 @@ def processMessage(data, processor_config):
     if not on: # still off and no state change for a while
         now = time.time()
         if 'offTime' in onOffTime[topic] and now - onOffTime[topic]['offTime'] > 300:
+            if DEBUG:
+                print(f"Device '{topic}' has been OFF for more than 5 minutes. Reporting 0% duty cycle.")
             onOffTime[topic]['offTime'] = now
             msg = json.dumps({ 'duty_cycle_percent': 0.0, json_field + '_by_dutycycle': 0.0})            
             return msg
