@@ -1,5 +1,7 @@
 from os import environ
 from datetime import datetime
+import sys
+import time
 import importlib
 import json
 import paho.mqtt.client as mqtt
@@ -106,8 +108,9 @@ def send_homeassistant_registration(hostname):
 def on_message(client, userdata, msg):
     payload = msg.payload.decode()
     if DEBUG:
+        print()
         print(datetime.now().strftime("%H:%M:%S %Y-%m-%d"))
-        print(f"\nMessage received on topic {msg.topic}, payload: {payload}")
+        print(f"Message received on topic {msg.topic}, payload: {payload}")
     for processor in processors:
         if msg.topic == processor['topic']:
             if DEBUG:
@@ -119,8 +122,12 @@ def on_message(client, userdata, msg):
                 topic = MQTT_TOPIC_PREFIX + '/' + processor['module'] + '/' + source + '/' + processor['json_field']
                 if DEBUG:
                     print(f"Publishing to topic {topic}: {msg}")
-                client.publish(topic, msg)
-
+                try:
+                    client.publish(topic, msg)
+                except Exception as e:
+                    print(f'MQTT Publish Failed: {e}')
+                    time.sleep(5)
+                    sys.exit(1)
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
