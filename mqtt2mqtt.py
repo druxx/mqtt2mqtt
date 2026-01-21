@@ -25,84 +25,42 @@ def getEnvInfo():
             topic = environ.get(f'{module_upper}_{module_number}_TOPIC')
             json_field = environ.get(f'{module_upper}_{module_number}_JSON_FIELD', '')
             threshold = environ.get(f'{module_upper}_{module_number}_THRESHOLD', 10) # value < threshold: off else on
+            ha_device = environ.get(f'{module_upper}_{module_number}_HA_DEVICE', 'zigbee2mqtt_0x0c2a6ffffedc1c16')
             list.append({
                 'module': module,
                 'topic': topic,
                 'json_field': json_field,
-                'threshold': threshold
+                'threshold': threshold,
+                'ha_device': ha_device
             })
             module_number += 1
     return list
 
-def getDiscoveryHostname(hostname):
-    """Return Home Assistant discovery hostname for a host.
-    """
-    return hostname.replace('.', '_').replace(' ', '_')
-
-def getTopic(hostname):
-    """Return MQTT topic for a host.
-    """
-    return f'{MQTT_TOPIC_PREFIX}/' + getDiscoveryHostname(hostname)
-
-def getHADeviceIdentifier(hostname):
-    """Return Home Assistant device identifier for a host.
-    """
-    return f"{MQTT_TOPIC_PREFIX.title()}_{getDiscoveryHostname(hostname)}".lower()
 
 
-def getHADeviceInfo(hostname):
-    """Return Home Assistant device info dictionary for a host.
-    """
-    return {
-        'identifiers': getHADeviceIdentifier(hostname),
-        'name': f"{MQTT_TOPIC_PREFIX.title()} {hostname}",
-        'model': 'ping2mqtt',
-        'manufacturer': 'Custom Script'
-    }   
-
-
-def getDefaultRegistrationPacket(hostname, sensor, entity):
-    """Return default Home Assistant registration packet for a host.
-    """
-
-    registration_packet = {
-        'name': sensor,
-        'device': getHADeviceInfo(hostname),
-        'enabled_by_default': True,
-        'unique_id': getHADeviceIdentifier(hostname) + f'_{sensor}',
-        'object_id': getHADeviceIdentifier(hostname) + f'_{sensor}',
-        'availability_topic': 'ping/status',
-        'state_topic': getTopic(hostname),
-#        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{hostname}',
-    }
-    registration_packet['value_template'] = f'{{{{ value_json.{sensor} }}}}'
-    if 'unit' in entity:
-        registration_packet['unit_of_measurement'] = entity['unit']
-    if entity['type'] == 'binary_sensor':
-        registration_packet['payload_off'] = 'false'
-        registration_packet['payload_on'] = 'true'
-        registration_packet['device_class'] = 'connectivity'
-    else:
-        registration_packet['state_class'] = 'measurement'
-    return registration_packet
-
-
-def send_homeassistant_registration(hostname):
-    """Register an MQTT device for a host.
-    """
-    entities = { 'alive': {'type': 'binary_sensor' }, \
-        'count': { 'type': 'sensor' }, \
-        'min': { 'type': 'sensor', 'unit': 'msec' }, \
-        'avg': { 'type': 'sensor', 'unit': 'msec' }, \
-        'max': { 'type': 'sensor', 'unit': 'msec' }, \
-        'percent_dropped': { 'type': 'sensor', 'unit': '%' } }
-
-    for key, entity in entities.items():
-        registration_packet = getDefaultRegistrationPacket(hostname, key, entity)
-        
-        registration_topic = HOMEASSISTANT_PREFIX + '/sensor/{}/{}/config'.format(getHADeviceIdentifier(hostname), key)
-#        mqtt_send(registration_topic, json.dumps(registration_packet), retain=True)
-
+def registerHAentity(config, mqtt):
+    json_field = config['json_field']
+    source_split = config['topic'].split('/')
+    source = source_split[len(source_split) - 1]
+    entities = config['getEntities']()
+    for entity in entities:
+        sensor = entity['name'].format(json_field=json_field)
+        state_topic = MQTT_TOPIC_PREFIX + '/' + config['module'] + '/' + source + '/' + json_field
+        registration_packet = {
+            'name': sensor,
+            'state_topic': state_topic,
+            'value_template': f'{{{{ value_json.{sensor} }}}}',
+            'unit_of_measurement': entity['unit'],
+            'device_class': entity['device_class'],
+            'state_class': 'measurement',
+            'enabled_by_default': True,
+            'device': {
+                'identifiers': [config['ha_device']],
+            },
+            'unique_id': source + '_' + sensor.replace(' ', '_').lower()
+        }
+        registration_topic = HOMEASSISTANT_PREFIX + '/sensor/{}/config'.format(registration_packet['unique_id'])
+        mqtt.publish(registration_topic, json.dumps(registration_packet), retain=True)
 
 
 def on_message(client, userdata, msg):
@@ -153,5 +111,8 @@ for processor in processors:
     processor['process_func'] = func
     client.subscribe(processor['topic'])
     print(f"Subscribed to {processor['topic']} for module {processor['module']}")
+    if 'ha_device' in processor:
+        processor['getEntities'] = getattr(module, "getEntities")
+        registerHAentity(processor, client)
 
 client.loop_forever()

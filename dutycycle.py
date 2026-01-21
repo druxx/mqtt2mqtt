@@ -55,7 +55,8 @@ def processMessage(data, processor_config):
             if DEBUG:
                 print(f"Duty Cycle: {dutyCycle:.2f}% = {value_by_dutycycle:.2f} (ON time: {onOffTime[topic]['dTon']:.2f}s, OFF time: {onOffTime[topic]['dToff']:.2f}s)")
             msg = json.dumps({
-                'duty_cycle_percent': round(dutyCycle, 2),
+                'duty_cycle': round(dutyCycle, 2),
+                'cycle_length': round(totalCycleTime, 2),
                 json_field + '_by_dutycycle': round(value_by_dutycycle, 2)
             })
             onOffTime[topic]['onValue'] = 0
@@ -73,4 +74,21 @@ def processMessage(data, processor_config):
         
     return None
 
-    
+def getEntities():
+    return [
+        {
+            'name': 'duty_cycle',
+            'unit': '%',
+            'device_class': 'power_factor' # if device class power, otherwise skip it
+        },
+        {
+            'name': 'cycle_length',
+            'unit': 's',
+            'device_class': 'duration'
+        },
+        {
+            'name': '{json_field}_by_dutycycle',
+            'unit': 'W', # later: get from config?
+            'device_class': 'power' # later: get from config?
+        }
+    ]
