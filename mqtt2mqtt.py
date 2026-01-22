@@ -9,9 +9,9 @@ import paho.mqtt.client as mqtt
 MQTT_TOPIC_PREFIX = environ.get('MQTT_TOPIC_PREFIX', 'mqtt2mqtt')
 DEBUG = environ.get('DEBUG') == '1'
 HOMEASSISTANT_PREFIX = environ.get('HOMEASSISTANT_PREFIX', 'homeassistant')
-MQTT_CLIENT_ID = environ.get('MQTT_CLIENT_ID', 'mqtt2mqtt')
-MQTT_USER = environ.get('MQTT_USER', '')
-MQTT_PASSWD = environ.get('MQTT_PASSWD', '')
+#MQTT_CLIENT_ID = environ.get('MQTT_CLIENT_ID', 'mqtt2mqtt')
+#MQTT_USER = environ.get('MQTT_USER', '')
+#MQTT_PASSWD = environ.get('MQTT_PASSWD', '')
 MQTT_HOST = environ.get('MQTT_HOST', 'localhost')
 MQTT_PORT = int(environ.get('MQTT_PORT', '1883'))
 MODULE_LIST = environ.get('MODULE_LIST', 'dutycycle').split(',')    
@@ -60,6 +60,8 @@ def registerHAentity(config, mqtt):
             'unique_id': source + '_' + sensor.replace(' ', '_').lower()
         }
         registration_topic = HOMEASSISTANT_PREFIX + '/sensor/{}/config'.format(registration_packet['unique_id'])
+        if DEBUG:
+            print(f"Registering HA entity on topic {registration_topic}: {json.dumps(registration_packet)}")
         mqtt.publish(registration_topic, json.dumps(registration_packet), retain=True)
 
 
