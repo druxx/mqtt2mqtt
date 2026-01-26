@@ -75,15 +75,15 @@ def on_message(client, userdata, msg):
         if msg.topic == processor['topic']:
             if DEBUG:
                 print(f"Processing message with module {processor['module']}")
-            msg = processor['process_func'](payload, processor)
-            if msg is not None:
+            reply = processor['process_func'](payload, processor)
+            if reply is not None:
                 source_split = processor['topic'].split('/')
                 source = source_split[len(source_split) - 1]
                 topic = MQTT_TOPIC_PREFIX + '/' + processor['module'] + '/' + source + '/' + processor['json_field']
                 if DEBUG:
-                    print(f"Publishing to topic {topic}: {msg}")
+                    print(f"Publishing to topic {topic}: {reply}")
                 try:
-                    client.publish(topic, msg)
+                    client.publish(topic, reply)
                 except Exception as e:
                     print(f'MQTT Publish Failed: {e}')
                     time.sleep(5)
